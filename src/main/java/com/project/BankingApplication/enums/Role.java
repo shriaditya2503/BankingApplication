@@ -1,5 +1,6 @@
 package com.project.BankingApplication.enums;
 
-public enum AccountType {
-    SAVINGS, CURRENT
+public enum Role {
+    ROLE_ADMIN,
+    ROLE_USER
 }

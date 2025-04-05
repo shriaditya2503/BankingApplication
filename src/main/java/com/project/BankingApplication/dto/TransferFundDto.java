@@ -1,36 +1,18 @@
 package com.project.BankingApplication.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.math.BigDecimal;
 
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class TransferFundDto {
-
-    private Long fromAccount;
-
-    private Long toAccount;
-
+    private String fromAccount;
+    private String toAccount;
     private BigDecimal amount;
-
-    public Long getFromAccount() {
-        return fromAccount;
-    }
-
-    public void setFromAccount(Long fromAccount) {
-        this.fromAccount = fromAccount;
-    }
-
-    public Long getToAccount() {
-        return toAccount;
-    }
-
-    public void setToAccount(Long toAccount) {
-        this.toAccount = toAccount;
-    }
-
-    public BigDecimal getAmount() {
-        return amount;
-    }
-
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
-    }
 }

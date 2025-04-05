@@ -1,35 +1,42 @@
 package com.project.BankingApplication.service;
 
+import com.project.BankingApplication.dto.AccountDto;
+import com.project.BankingApplication.dto.ApiResponseDto;
 import com.project.BankingApplication.entity.Transaction;
-import com.project.BankingApplication.enums.TransactionStatus;
 import com.project.BankingApplication.repo.TransactionRepo;
+import com.project.BankingApplication.repo.UserRepo;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class TransactionService {
 
     @Autowired
-    TransactionRepo transactionRepo;
+    private TransactionRepo transactionRepo;
 
     @Autowired
-    AccountService accountService;
+    private UserService userService;
 
-    public Transaction transferFund(Long fromAccount, Long toAccount, BigDecimal amount) {
-        accountService.decreaseBalance(fromAccount, amount);
-        accountService.increaseBalance(toAccount, amount);
+    public ResponseEntity<?> transactionList(AccountDto accountDto) {
+        if(!userService.existsByAccountNum(accountDto.getAccountNum())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponseDto.builder()
+                            .statusCode(HttpStatus.CONFLICT.value())
+                            .message("Account not found")
+                            .build());
+        }
 
-        Transaction transaction = new Transaction();
-        transaction.setFromAccount(accountService.getAccount(fromAccount));
-        transaction.setToAccount(accountService.getAccount(toAccount));
-        transaction.setAmount(amount);
-        transaction.setStatus(TransactionStatus.SUCCESSFUL);
-        transaction.setTimeStamp(LocalDateTime.now());
+        List<Transaction> allTransactions = transactionRepo.findAll();
 
-        return transactionRepo.save(transaction);
+        List<Transaction> transactions = allTransactions.stream()
+                .filter(transaction -> transaction.getAccountNum().equals(accountDto.getAccountNum()))
+                .toList();
+
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(transactions);
     }
-
 }

@@ -9,8 +9,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ApiResponseDto {
-    private int statusCode;
-    private String message;
+public class EnquiryDto {
+    private String email;
 }
-
