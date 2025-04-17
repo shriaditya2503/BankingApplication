@@ -6,13 +6,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-@CrossOrigin(origins = "http://localhost:8080")
 @RestController
 @RequestMapping("/user")
 public class UserController {
 
     @Autowired
-    UserService userService;
+    private UserService userService;
 
     @PostMapping("/create-user")
     public ApiResponseDto createUser(@RequestBody UserDetailsDto userDetails) {
@@ -25,8 +24,8 @@ public class UserController {
     }
 
     @PostMapping("/update-user-details")
-    public ApiResponseDto updateUserDetails(@RequestBody UpdateUserDetailsDto updateUserDetailsDto) {
-        return userService.updateUserDetails(updateUserDetailsDto);
+    public ApiResponseDto updateUserDetails(@RequestParam String email, @RequestBody UpdateUserDetailsDto updateUserDetailsDto) {
+        return userService.updateUserDetails(email, updateUserDetailsDto);
     }
 
     @PostMapping("/credit")
@@ -44,9 +43,9 @@ public class UserController {
         return userService.transferFund(transferFundDto);
     }
 
-    @GetMapping("/test")
-    public String test() {
-        return "test";
+    @PostMapping("/check-balance")
+    public ResponseEntity<?> checkBalance(@RequestBody EnquiryDto enquiryDto){
+        return userService.checkBalance(enquiryDto);
     }
 }
 

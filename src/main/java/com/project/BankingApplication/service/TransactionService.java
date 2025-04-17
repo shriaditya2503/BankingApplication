@@ -19,10 +19,14 @@ public class TransactionService {
     private TransactionRepo transactionRepo;
 
     @Autowired
-    private UserService userService;
+    private UserRepo userRepo;
+
+    public void saveTransaction(Transaction transaction) {
+        transactionRepo.save(transaction);
+    }
 
     public ResponseEntity<?> transactionList(AccountDto accountDto) {
-        if(!userService.existsByAccountNum(accountDto.getAccountNum())) {
+        if(!userRepo.existsByAccountNum(accountDto.getAccountNum())) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(ApiResponseDto.builder()
                             .statusCode(HttpStatus.CONFLICT.value())

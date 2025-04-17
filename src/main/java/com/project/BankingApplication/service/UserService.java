@@ -5,8 +5,8 @@ import com.project.BankingApplication.entity.Transaction;
 import com.project.BankingApplication.entity.User;
 import com.project.BankingApplication.enums.Role;
 import com.project.BankingApplication.enums.TransactionType;
-import com.project.BankingApplication.repo.TransactionRepo;
 import com.project.BankingApplication.repo.UserRepo;
+import com.project.BankingApplication.utils.EmailBody;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -20,10 +20,13 @@ import java.util.Random;
 @Service
 public class UserService {
     @Autowired
-    UserRepo userRepo;
+    private UserRepo userRepo;
 
     @Autowired
-    TransactionRepo transactionRepo;
+    private TransactionService transactionService;
+
+    @Autowired
+    private EmailService emailService;
 
     // create new user
     @Transactional
@@ -44,12 +47,20 @@ public class UserService {
                 .accountNum(generateAccountNum())
                 .balance(BigDecimal.ZERO)
                 .status("ACTIVE")
-                .role(Role.ROLE_ADMIN)
+                .role(Role.ADMIN)
                 .creationDate(LocalDateTime.now())
                 .modificationDate(null)
                 .build();
 
         User savedUser = userRepo.save(newUser);
+
+        // send email
+        EmailDto emailDto = EmailDto.builder()
+                .recipientEmail(savedUser.getEmail())
+                .subject("Welcome to Lala Finance Bank, "+ savedUser.getFirstName()+" "+savedUser.getLastName() +"!")
+                .text(EmailBody.createUserBody(savedUser))
+                .build();
+        emailService.sendEmail(emailDto);
 
         return ApiResponseDto.builder()
                 .statusCode(HttpStatus.OK.value())
@@ -75,21 +86,31 @@ public class UserService {
 
     // update user details
     @Transactional
-    public ApiResponseDto updateUserDetails(UpdateUserDetailsDto updateUserDetailsDto) {
-        if(!existsByEmail(updateUserDetailsDto.getEmail())) {
+    public ApiResponseDto updateUserDetails(String email, UpdateUserDetailsDto updateUserDetailsDto) {
+        if(!existsByEmail(email)) {
             return ApiResponseDto.builder()
                     .statusCode(HttpStatus.CONFLICT.value())
                     .message("Invalid Email")
                     .build();
         }
 
-        User user = getUserByEmail(updateUserDetailsDto.getEmail());
+        User user = getUserByEmail(email);
+
+        user.setEmail(updateUserDetailsDto.getEmail());
 
         user.setPassword(updateUserDetailsDto.getPassword());
 
         user.setPhoneNum(updateUserDetailsDto.getPhoneNum());
 
         user.setModificationDate(LocalDateTime.now());
+
+        // send email
+        EmailDto emailDto = EmailDto.builder()
+                .recipientEmail(user.getEmail())
+                .subject("Your profile has been successfully updated")
+                .text(EmailBody.updateDetails(user))
+                .build();
+        emailService.sendEmail(emailDto);
 
         return ApiResponseDto.builder()
                 .statusCode(HttpStatus.OK.value())
@@ -118,7 +139,15 @@ public class UserService {
                 .timeStamp(LocalDateTime.now())
                 .build();
 
-        transactionRepo.save(transaction);
+        transactionService.saveTransaction(transaction);
+
+        // send email
+        EmailDto emailDto = EmailDto.builder()
+                .recipientEmail(user.getEmail())
+                .subject("Credit Alert: ₹" + transaction.getAmount() + " credited to your account")
+                .text(EmailBody.creditBody(user, transaction, "Self Deposit"))
+                .build();
+        emailService.sendEmail(emailDto);
 
         return ApiResponseDto.builder()
                 .statusCode(HttpStatus.OK.value())
@@ -154,7 +183,15 @@ public class UserService {
                 .timeStamp(LocalDateTime.now())
                 .build();
 
-        transactionRepo.save(transaction);
+        transactionService.saveTransaction(transaction);
+
+        // send email
+        EmailDto emailDto = EmailDto.builder()
+                .recipientEmail(user.getEmail())
+                .subject("Debit Alert: ₹" + transaction.getAmount() + " debited from your account")
+                .text(EmailBody.debitBody(user, transaction))
+                .build();
+        emailService.sendEmail(emailDto);
 
         return ApiResponseDto.builder()
                 .statusCode(HttpStatus.OK.value())
@@ -182,7 +219,7 @@ public class UserService {
                     .build();
         }
 
-        // update from account balance
+        // update fromAccount balance
         fromAccount.setBalance(fromAccount.getBalance().subtract(transferFundDto.getAmount()));
 
         Transaction fromTransaction = Transaction.builder()
@@ -192,10 +229,10 @@ public class UserService {
                 .timeStamp(LocalDateTime.now())
                 .build();
 
-        transactionRepo.save(fromTransaction);
+        transactionService.saveTransaction(fromTransaction);
 
-        // update to account balance
-        toAccount.setBalance(fromAccount.getBalance().add(transferFundDto.getAmount()));
+        // update toAccount balance
+        toAccount.setBalance(toAccount.getBalance().add(transferFundDto.getAmount()));
 
         Transaction toTransaction = Transaction.builder()
                 .accountNum(transferFundDto.getToAccount())
@@ -204,7 +241,23 @@ public class UserService {
                 .timeStamp(LocalDateTime.now())
                 .build();
 
-        transactionRepo.save(toTransaction);
+        transactionService.saveTransaction(toTransaction);
+
+        // send from email
+        EmailDto debitAlert = EmailDto.builder()
+                .recipientEmail(fromAccount.getEmail())
+                .subject("Fund Transfer Successful: ₹" + fromTransaction.getAmount() + " sent to " + toAccount.getFirstName()+" "+toAccount.getLastName())
+                .text(EmailBody.fundTransferBody(fromAccount, fromTransaction, toAccount.getFirstName()+" "+toAccount.getLastName()))
+                .build();
+        emailService.sendEmail(debitAlert);
+
+        // send to email
+        EmailDto creditAlert = EmailDto.builder()
+                .recipientEmail(toAccount.getEmail())
+                .subject("Credit Alert: ₹" + toTransaction.getAmount() + " credited to your account")
+                .text(EmailBody.creditBody(toAccount, toTransaction, fromAccount.getFirstName()+" "+fromAccount.getLastName()))
+                .build();
+        emailService.sendEmail(creditAlert);
 
         return ApiResponseDto.builder()
                 .statusCode(HttpStatus.OK.value())
@@ -212,6 +265,21 @@ public class UserService {
                 .build();
     }
 
+    public ResponseEntity<?> checkBalance(EnquiryDto enquiryDto){
+        if(!existsByEmail(enquiryDto.getEmail())){
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponseDto.builder()
+                            .statusCode(HttpStatus.CONFLICT.value())
+                            .message("user not found")
+                            .build());
+        }
+        User user = userRepo.findByEmail(enquiryDto.getEmail());
+
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(user.getBalance());
+    }
+
+    // utility methods
     public boolean existsByEmail(String email) {
         return userRepo.existsByEmail(email);
     }

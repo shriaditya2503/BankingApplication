@@ -9,8 +9,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class UpdateUserDetailsDto {
-    private String email;
-    private String password;
-    private String phoneNum;
+public class EmailDto {
+    private String recipientEmail;
+    private String subject;
+    private String text;
 }

@@ -1,5 +1,6 @@
 package com.project.BankingApplication.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.project.BankingApplication.enums.Role;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -24,6 +25,7 @@ public class User {
     private String lastName;
     private String phoneNum;
     private String email;
+    @JsonIgnore
     private String password;
     private String accountNum;
     private BigDecimal balance;

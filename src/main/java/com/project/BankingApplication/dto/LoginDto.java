@@ -6,11 +6,11 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class UpdateUserDetailsDto {
+public class LoginDto {
+
     private String email;
     private String password;
-    private String phoneNum;
 }
