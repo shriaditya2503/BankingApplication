@@ -14,7 +14,7 @@ public class EmailBody {
                 "**Account Summary:**  \n" +
                 "- Customer Name: " + user.getFirstName()+" "+user.getLastName() + "\n" +
                 "- Account Number: " + user.getAccountNum() + "\n" +
-                "- Account Type: SAVINGS \n" +
+                "- Account Type: SAVING \n" +
                 "- Registered Mobile: " + user.getPhoneNum() + "\n" +
                 "- Registered Email: " + user.getEmail() + "\n" +
                 "\n" +
@@ -57,7 +57,7 @@ public class EmailBody {
                 "- Date: " + transaction.getTimeStamp() + "\n" +
                 "- Transaction Type: CREDIT  \n" +
                 "- Description: From " + fromName + "\n" +
-                "- Available Balance: " + user.getBalance() + "\n" +
+                "- Available Balance: ₹" + user.getBalance() + "\n" +
                 "\n" +
                 "Thank you for banking with us.\n" +
                 "\n" +
@@ -76,7 +76,7 @@ public class EmailBody {
                 "- Date: " + transaction.getTimeStamp() + "\n" +
                 "- Transaction Type: DEBIT  \n" +
                 "- Description: Self Withdrawal \n" +
-                "- Available Balance: " + user.getBalance() + "\n" +
+                "- Available Balance: ₹" + user.getBalance() + "\n" +
                 "\n" +
                 "If this transaction was not initiated by you, please contact our support team immediately.\n" +
                 "\n" +
@@ -95,7 +95,7 @@ public class EmailBody {
                 "- Date: " + fromTransaction.getTimeStamp() + "\n" +
                 "- Transaction Type: DEBIT  \n" +
                 "- Description: Transferred to " + toName + "\n" +
-                "- Available Balance: " + user.getBalance() + "\n" +
+                "- Available Balance: ₹" + user.getBalance() + "\n" +
                 "\n" +
                 "If this transaction was not initiated by you, please contact our support team immediately.\n" +
                 "\n" +

@@ -11,7 +11,6 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @Builder
 public class TransferFundDto {
-    private String fromAccount;
     private String toAccount;
     private BigDecimal amount;
 }

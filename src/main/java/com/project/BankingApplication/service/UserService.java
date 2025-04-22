@@ -3,14 +3,18 @@ package com.project.BankingApplication.service;
 import com.project.BankingApplication.dto.*;
 import com.project.BankingApplication.entity.Transaction;
 import com.project.BankingApplication.entity.User;
-import com.project.BankingApplication.enums.Role;
 import com.project.BankingApplication.enums.TransactionType;
 import com.project.BankingApplication.repo.UserRepo;
+import com.project.BankingApplication.security.jwt.JwtService;
 import com.project.BankingApplication.utils.EmailBody;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -26,28 +30,48 @@ public class UserService {
     private TransactionService transactionService;
 
     @Autowired
+    private JwtService jwtService;
+
+    @Autowired
+    private AuthenticationManager authManager;
+
+    @Autowired
     private EmailService emailService;
+
+    // login
+    public ResponseEntity<String> login(LoginDto dto) {
+        Authentication authentication = authManager
+                .authenticate(new UsernamePasswordAuthenticationToken(dto.getEmail(),dto.getPassword()));
+
+        if(!authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body("Wrong Credentials");
+        }
+
+        String jwtToken = jwtService.generateToken(dto.getEmail());
+
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(jwtToken);
+    }
 
     // create new user
     @Transactional
-    public ApiResponseDto createUser(UserDetailsDto userDetails) {
-        if(userRepo.existsByEmail(userDetails.getEmail())) {
-            return ApiResponseDto.builder()
-                    .statusCode(HttpStatus.CONFLICT.value())
-                    .message("Email not available")
-                    .build();
+    public ResponseEntity<String> registerUser(UserInfoDto userInfoDto) {
+        if(userRepo.existsByEmail(userInfoDto.getEmail())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Email already exists");
         }
 
         User newUser = User.builder()
-                .firstName(userDetails.getFirstName())
-                .lastName(userDetails.getLastName())
-                .phoneNum(userDetails.getPhoneNum())
-                .email(userDetails.getEmail())
-                .password(userDetails.getPassword())
+                .firstName(userInfoDto.getFirstName())
+                .lastName(userInfoDto.getLastName())
+                .phoneNum(userInfoDto.getPhoneNum())
+                .email(userInfoDto.getEmail())
+                .password(userInfoDto.getPassword())
                 .accountNum(generateAccountNum())
                 .balance(BigDecimal.ZERO)
                 .status("ACTIVE")
-                .role(Role.ADMIN)
+                .role("USER")
                 .creationDate(LocalDateTime.now())
                 .modificationDate(null)
                 .build();
@@ -62,23 +86,32 @@ public class UserService {
                 .build();
         emailService.sendEmail(emailDto);
 
-        return ApiResponseDto.builder()
-                .statusCode(HttpStatus.OK.value())
-                .message("Account Created Successfully")
-                .build();
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body("Account created successfully");
+    }
+
+    // get name
+    public ResponseEntity<String> getName() {
+
+        User user = getCurrentAuthenticatedUser();
+
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(user.getFirstName()+" "+user.getLastName());
+    }
+
+    // get balance
+    public ResponseEntity<BigDecimal> getBalance(){
+
+        User user = getCurrentAuthenticatedUser();
+
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(user.getBalance());
     }
 
     // fetch user details
-    public ResponseEntity<?> fetchUserDetails(EnquiryDto enquiryDto) {
-        if(!existsByEmail(enquiryDto.getEmail())) {
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(ApiResponseDto.builder()
-                            .statusCode(HttpStatus.CONFLICT.value())
-                            .message("Invalid Email")
-                            .build());
-        }
+    public ResponseEntity<User> fetchUserDetails() {
 
-        User user = userRepo.findByEmail(enquiryDto.getEmail());
+        User user = getCurrentAuthenticatedUser();
 
         return ResponseEntity.status(HttpStatus.OK)
                 .body(user);
@@ -86,15 +119,9 @@ public class UserService {
 
     // update user details
     @Transactional
-    public ApiResponseDto updateUserDetails(String email, UpdateUserDetailsDto updateUserDetailsDto) {
-        if(!existsByEmail(email)) {
-            return ApiResponseDto.builder()
-                    .statusCode(HttpStatus.CONFLICT.value())
-                    .message("Invalid Email")
-                    .build();
-        }
+    public ResponseEntity<String> updateUserDetails(UpdateUserDetailsDto updateUserDetailsDto) {
 
-        User user = getUserByEmail(email);
+        User user = getCurrentAuthenticatedUser();
 
         user.setEmail(updateUserDetailsDto.getEmail());
 
@@ -112,20 +139,16 @@ public class UserService {
                 .build();
         emailService.sendEmail(emailDto);
 
-        return ApiResponseDto.builder()
-                .statusCode(HttpStatus.OK.value())
-                .message("User Details Updated")
-                .build();
+        return ResponseEntity.status(HttpStatus.OK)
+                .body("User details updated successfully");
     }
 
     // credit amount
     @Transactional
-    public ApiResponseDto creditAmount(CreditDebitDto creditDebitDto) {
-        if(!existsByAccountNum(creditDebitDto.getAccountNum())) {
-            return ApiResponseDto.builder()
-                    .statusCode(HttpStatus.CONFLICT.value())
-                    .message("Account not found")
-                    .build();
+    public ResponseEntity<String> creditAmount(CreditDebitDto creditDebitDto) {
+        if(!userRepo.existsByAccountNum(creditDebitDto.getAccountNum())) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Account not found");
         }
 
         User user = getUserByAccountNum(creditDebitDto.getAccountNum());
@@ -133,7 +156,7 @@ public class UserService {
         user.setBalance(user.getBalance().add(creditDebitDto.getAmount()));
 
         Transaction transaction = Transaction.builder()
-                .accountNum(creditDebitDto.getAccountNum())
+                .accountNum(user.getAccountNum())
                 .amount(creditDebitDto.getAmount())
                 .transactionType(TransactionType.CREDIT)
                 .timeStamp(LocalDateTime.now())
@@ -149,35 +172,29 @@ public class UserService {
                 .build();
         emailService.sendEmail(emailDto);
 
-        return ApiResponseDto.builder()
-                .statusCode(HttpStatus.OK.value())
-                .message("Rs. " + creditDebitDto.getAmount() + " are credited to your account")
-                .build();
+        return ResponseEntity.status(HttpStatus.OK)
+                .body("Rs. " + creditDebitDto.getAmount() + " are credited to the account");
     }
 
     // debit amount
     @Transactional
-    public ApiResponseDto debitAmount(CreditDebitDto creditDebitDto) {
-        if(!existsByAccountNum(creditDebitDto.getAccountNum())) {
-            return ApiResponseDto.builder()
-                    .statusCode(HttpStatus.CONFLICT.value())
-                    .message("Account not found")
-                    .build();
+    public ResponseEntity<String> debitAmount(CreditDebitDto creditDebitDto) {
+        if(!userRepo.existsByAccountNum(creditDebitDto.getAccountNum())) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Invalid Email");
         }
 
         User user = getUserByAccountNum(creditDebitDto.getAccountNum());
 
         if(user.getBalance().compareTo(creditDebitDto.getAmount()) < 0) {
-            return ApiResponseDto.builder()
-                    .statusCode(HttpStatus.CONTINUE.value())
-                    .message("Insufficient balance")
-                    .build();
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Insufficient balance");
         }
 
         user.setBalance(user.getBalance().subtract(creditDebitDto.getAmount()));
 
         Transaction transaction = Transaction.builder()
-                .accountNum(creditDebitDto.getAccountNum())
+                .accountNum(user.getAccountNum())
                 .amount(creditDebitDto.getAmount())
                 .transactionType(TransactionType.DEBIT)
                 .timeStamp(LocalDateTime.now())
@@ -193,37 +210,32 @@ public class UserService {
                 .build();
         emailService.sendEmail(emailDto);
 
-        return ApiResponseDto.builder()
-                .statusCode(HttpStatus.OK.value())
-                .message("Rs. " + creditDebitDto.getAmount() + " are debited from your account")
-                .build();
+        return ResponseEntity.status(HttpStatus.OK)
+                .body("Rs. " + creditDebitDto.getAmount() + " are debited from the account");
     }
 
     // transfer fund
     @Transactional
-    public ApiResponseDto transferFund(TransferFundDto transferFundDto) {
-        if(!existsByAccountNum(transferFundDto.getFromAccount()) || !existsByAccountNum(transferFundDto.getToAccount())) {
-            return ApiResponseDto.builder()
-                    .statusCode(HttpStatus.CONFLICT.value())
-                    .message("Account not found")
-                    .build();
+    public ResponseEntity<String> transferFund(TransferFundDto transferFundDto) {
+
+        if(!existsByAccountNum(transferFundDto.getToAccount())) {;
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Destination account not found");
         }
 
-        User fromAccount = getUserByAccountNum(transferFundDto.getFromAccount());
+        User fromAccount = getCurrentAuthenticatedUser();
         User toAccount = getUserByAccountNum(transferFundDto.getToAccount());
 
         if(fromAccount.getBalance().compareTo(transferFundDto.getAmount()) < 0) {
-            return ApiResponseDto.builder()
-                    .statusCode(HttpStatus.CONTINUE.value())
-                    .message("Insufficient balance")
-                    .build();
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Insufficient balance");
         }
 
         // update fromAccount balance
         fromAccount.setBalance(fromAccount.getBalance().subtract(transferFundDto.getAmount()));
 
         Transaction fromTransaction = Transaction.builder()
-                .accountNum(transferFundDto.getFromAccount())
+                .accountNum(fromAccount.getAccountNum())
                 .amount(transferFundDto.getAmount())
                 .transactionType(TransactionType.DEBIT)
                 .timeStamp(LocalDateTime.now())
@@ -235,7 +247,7 @@ public class UserService {
         toAccount.setBalance(toAccount.getBalance().add(transferFundDto.getAmount()));
 
         Transaction toTransaction = Transaction.builder()
-                .accountNum(transferFundDto.getToAccount())
+                .accountNum(toAccount.getAccountNum())
                 .amount(transferFundDto.getAmount())
                 .transactionType(TransactionType.CREDIT)
                 .timeStamp(LocalDateTime.now())
@@ -259,27 +271,17 @@ public class UserService {
                 .build();
         emailService.sendEmail(creditAlert);
 
-        return ApiResponseDto.builder()
-                .statusCode(HttpStatus.OK.value())
-                .message("Rs. " + transferFundDto.getAmount() + " are transferred")
-                .build();
-    }
-
-    public ResponseEntity<?> checkBalance(EnquiryDto enquiryDto){
-        if(!existsByEmail(enquiryDto.getEmail())){
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(ApiResponseDto.builder()
-                            .statusCode(HttpStatus.CONFLICT.value())
-                            .message("user not found")
-                            .build());
-        }
-        User user = userRepo.findByEmail(enquiryDto.getEmail());
-
         return ResponseEntity.status(HttpStatus.OK)
-                .body(user.getBalance());
+                .body("Rs. " + transferFundDto.getAmount() + " are transferred successfully");
+
     }
 
     // utility methods
+    private User getCurrentAuthenticatedUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return userRepo.findByEmail(authentication.getName());
+    }
+
     public boolean existsByEmail(String email) {
         return userRepo.existsByEmail(email);
     }
@@ -298,11 +300,9 @@ public class UserService {
 
     public String generateAccountNum() {
         String accountNum;
-
-        do accountNum = generateUniqueAccountNum();
-
-        while (userRepo.existsByAccountNum(accountNum));
-
+        do {
+            accountNum = generateUniqueAccountNum();
+        } while (userRepo.existsByAccountNum(accountNum));
         return accountNum;
     }
 

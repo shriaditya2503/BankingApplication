@@ -1,7 +1,6 @@
 package com.project.BankingApplication.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.project.BankingApplication.enums.Role;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -29,8 +28,7 @@ public class User {
     private String password;
     private String accountNum;
     private BigDecimal balance;
-    @Enumerated(value = EnumType.STRING)
-    private Role role;
+    private String role;
     private String status;
     private LocalDateTime creationDate;
     private LocalDateTime modificationDate;

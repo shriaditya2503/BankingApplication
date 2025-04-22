@@ -1,7 +1,6 @@
 package com.project.BankingApplication.service;
 
 import com.project.BankingApplication.dto.AccountDto;
-import com.project.BankingApplication.dto.ApiResponseDto;
 import com.project.BankingApplication.entity.Transaction;
 import com.project.BankingApplication.repo.TransactionRepo;
 import com.project.BankingApplication.repo.UserRepo;
@@ -28,10 +27,7 @@ public class TransactionService {
     public ResponseEntity<?> transactionList(AccountDto accountDto) {
         if(!userRepo.existsByAccountNum(accountDto.getAccountNum())) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(ApiResponseDto.builder()
-                            .statusCode(HttpStatus.CONFLICT.value())
-                            .message("Account not found")
-                            .build());
+                    .body("Account not found");
         }
 
         List<Transaction> allTransactions = transactionRepo.findAll();
