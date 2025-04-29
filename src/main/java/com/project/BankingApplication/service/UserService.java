@@ -50,13 +50,15 @@ public class UserService {
 
         String jwtToken = jwtService.generateToken(dto.getEmail());
 
+        System.out.println(jwtToken);
+
         return ResponseEntity.status(HttpStatus.OK)
                 .body(jwtToken);
     }
 
     // create new user
     @Transactional
-    public ResponseEntity<String> registerUser(UserInfoDto userInfoDto) {
+    public ResponseEntity<String>  registerUser(UserInfoDto userInfoDto) {
         if(userRepo.existsByEmail(userInfoDto.getEmail())) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body("Email already exists");
@@ -123,11 +125,17 @@ public class UserService {
 
         User user = getCurrentAuthenticatedUser();
 
-        user.setEmail(updateUserDetailsDto.getEmail());
+        if(updateUserDetailsDto.getEmail() != null) {
+            user.setEmail(updateUserDetailsDto.getEmail());
+        }
 
-        user.setPassword(updateUserDetailsDto.getPassword());
+        if(updateUserDetailsDto.getPassword() != null) {
+            user.setPassword(updateUserDetailsDto.getPassword());
+        }
 
-        user.setPhoneNum(updateUserDetailsDto.getPhoneNum());
+        if(updateUserDetailsDto.getPhoneNum() != null) {
+            user.setPhoneNum(updateUserDetailsDto.getPhoneNum());
+        }
 
         user.setModificationDate(LocalDateTime.now());
 
