@@ -85,9 +85,9 @@ http://localhost:8080
 
 Author: Aditya Shrivastava
 
-GitHub: adityashrvstv25
+GitHub: shriaditya2503
 
-Email: adityashrvstv25@gmail.com
+Email: shriaditya2503@gmail.com
 
 ------------------------------------------------------------------------------------------------------------------------
 
